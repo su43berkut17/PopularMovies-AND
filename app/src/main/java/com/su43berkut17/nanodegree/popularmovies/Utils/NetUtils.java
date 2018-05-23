@@ -34,6 +34,42 @@ public class NetUtils {
         return url;
     }
 
+    //build the url for trailers
+    public static URL urlBuilderTrailers(String videoId){
+        Uri builtUri = Uri.parse(MOVIE_URL+videoId+"/videos").buildUpon()
+                .appendQueryParameter("api_key",API_KEY)
+                .appendQueryParameter("language","en-US")
+                .build();
+
+        URL url=null;
+        try{
+            url=new URL(builtUri.toString());
+            Log.i("URL",url.toString());
+        }catch (MalformedURLException e){
+            e.printStackTrace();
+        }
+
+        return url;
+    }
+
+    //build the url for the reviews
+    public static URL urlBuilderReviews(String videoId){
+        Uri builtUri = Uri.parse(MOVIE_URL+videoId+"/reviews").buildUpon()
+                .appendQueryParameter("api_key",API_KEY)
+                .appendQueryParameter("language","en-US")
+                .appendQueryParameter("page","1")
+                .build();
+
+        URL url=null;
+        try{
+            url=new URL(builtUri.toString());
+        }catch (MalformedURLException e){
+            e.printStackTrace();
+        }
+
+        return url;
+    }
+
     //gets the stream from getMovieList
     public static String getMovieList(URL url) throws IOException{
         HttpURLConnection connection=(HttpURLConnection)url.openConnection();

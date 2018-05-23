@@ -10,6 +10,7 @@ public class thumbnail implements Parcelable {
     private String details;
     private String release_date;
     private float vote_average;
+    private String movieId;
     //Movie details layout contains title, release date, movie poster, vote average, and plot synopsis.
 
     public String getTitle(){return title;}
@@ -24,13 +25,16 @@ public class thumbnail implements Parcelable {
 
     public float getVote_average(){return vote_average;}
 
-    public thumbnail(String rec_title, String rec_url, String rec_wideUrl, String rec_details,String rec_release_date,float rec_vote_average){
+    public String getmovieId(){return movieId;}
+
+    public thumbnail(String rec_title, String rec_url, String rec_wideUrl, String rec_details,String rec_release_date,float rec_vote_average,String rec_movie_id){
         title=rec_title;
         url=rec_url;
         wideUrl=rec_wideUrl;
         details=rec_details;
         release_date=rec_release_date;
         vote_average=rec_vote_average;
+        movieId=rec_movie_id;
     }
 
     private thumbnail(Parcel out){
@@ -40,6 +44,7 @@ public class thumbnail implements Parcelable {
         details=out.readString();
         release_date=out.readString();
         vote_average=out.readFloat();
+        movieId=out.readString();
     }
 
     @Override
@@ -55,6 +60,7 @@ public class thumbnail implements Parcelable {
         out.writeString(details);
         out.writeString(release_date);
         out.writeFloat(vote_average);
+        out.writeString(movieId);
     }
 
     public static final Parcelable.Creator<thumbnail> CREATOR = new Parcelable.Creator<thumbnail>(){

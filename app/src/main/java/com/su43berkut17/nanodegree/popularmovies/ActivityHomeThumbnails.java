@@ -140,11 +140,12 @@ public class ActivityHomeThumbnails extends AppCompatActivity implements LoaderM
                     JSONObject object = jsonArray.getJSONObject(i);
 
                     thumbnail thumbs = new thumbnail(object.getString("original_title")
-                            , object.getString("poster_path")
+                            ,object.getString("poster_path")
                             ,object.getString("backdrop_path")
-                            , object.getString("overview")
-                            , object.getString("release_date")
-                            , object.getInt("vote_average"));
+                            ,object.getString("overview")
+                            ,object.getString("release_date")
+                            ,object.getInt("vote_average")
+                            ,object.getString("id"));
                     thumbnailList.add(thumbs);
                 }
 
