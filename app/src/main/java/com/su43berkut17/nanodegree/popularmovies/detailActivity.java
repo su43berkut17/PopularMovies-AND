@@ -1,8 +1,10 @@
 package com.su43berkut17.nanodegree.popularmovies;
 
 import android.content.ActivityNotFoundException;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
@@ -27,6 +29,7 @@ import com.su43berkut17.nanodegree.popularmovies.RV_related.trailer;
 import com.su43berkut17.nanodegree.popularmovies.RV_related.trailer_adapter;
 import com.su43berkut17.nanodegree.popularmovies.RV_related.review_adapter;
 import com.su43berkut17.nanodegree.popularmovies.Utils.NetUtils;
+import com.su43berkut17.nanodegree.popularmovies.data.favoritesContract;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -51,6 +54,9 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
     private List<trailer> trailerList;
     private List<reviews> reviewList;
 
+    //generate the object that has all the variables to store
+    thumbnail object;
+
     //get the view ids
     TextView tv_title;
     TextView tv_release;
@@ -58,6 +64,10 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
     ImageView iv_poster;
     ImageView iv_thumb;
     RatingBar rv_score;
+    ImageView iv_favorite;
+
+    //favorites related
+    Boolean mIsFavorite;
 
     //other bars
     private String movieID;
@@ -67,6 +77,9 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
 
+        //debug
+        //mIsFavorite=false;
+
         //get the views
         tv_title=(TextView)findViewById(R.id.tv_title);
         tv_release=(TextView)findViewById(R.id.tv_release);
@@ -74,9 +87,27 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
         iv_poster=(ImageView)findViewById(R.id.iv_poster);
         iv_thumb=(ImageView)findViewById(R.id.iv_thumb);
         rv_score=(RatingBar)findViewById(R.id.rat_score);
+        iv_favorite=(ImageView)findViewById(R.id.bFavorite);
+
+        //we set the listener to the favorites button
+        iv_favorite.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.i("detACT","the value of mIsFavorite is "+mIsFavorite );
+                if (mIsFavorite!=null) {
+                    if (mIsFavorite) {
+                        //it is a favorite so we delete
+                        deleteFavorite();
+                    } else {
+                        //it is not a favorite so we save
+                        saveFavorite();
+                    }
+                }
+            }
+        });
 
         //get the parcelable
-        thumbnail object=(thumbnail) getIntent().getParcelableExtra("detailParce");
+        object=(thumbnail) getIntent().getParcelableExtra("detailParce");
         tv_title.setText(object.getTitle());
         tv_release.setText(object.getRelease_date());
         tv_plot.setText(object.getDetails());
@@ -93,6 +124,9 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
 
         //we load the trailers and the reviews
         loadTrailers(movieID,"trailer");
+
+        //we check if it is already in favorites
+        checkFavorite();
     }
 
     //function that loads trailers
@@ -227,6 +261,7 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
 
     }
 
+    //open trailer
     @Override
     public void onMovieItemClick(trailer clicked){
         //we play the video
@@ -244,11 +279,94 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
         }
     }
 
+    //open review
     @Override
     public void onMovieItemClick(reviews clicked){
         Intent webIntent=new Intent(Intent.ACTION_VIEW , Uri.parse(clicked.getUrl()));
 
         Context context=getApplicationContext();
         context.startActivity(webIntent);
+    }
+
+    //content provider write
+    private void deleteFavorite(){
+        Log.i("detACT","we will delete now");
+        //we delete the current object
+        int rowDeleted=0;
+
+        String selection;
+        String[] selectionArgs={""};
+
+        selection=favoritesContract.FavoritesEntry.COLUMN_MOVIE_ID + " = ?";
+        selectionArgs[0]=movieID;
+
+        rowDeleted=getContentResolver().delete(favoritesContract.FavoritesEntry.FAVORITES_URI,
+                selection,
+                selectionArgs);
+
+        Log.i("detACT","we deleted "+rowDeleted+" items");
+
+        //we check if something was deleted
+        checkFavorite();
+    }
+
+    private void saveFavorite(){
+        //we save the current object
+        ContentValues contentValues=new ContentValues();
+        contentValues.put(favoritesContract.FavoritesEntry.COLUMN_MOVIE_ID,object.getmovieId());
+        contentValues.put(favoritesContract.FavoritesEntry.COLUMN_TITLE,object.getTitle());
+        contentValues.put(favoritesContract.FavoritesEntry.COLUMN_DESCRIPTION,object.getDetails());
+        contentValues.put(favoritesContract.FavoritesEntry.COLUMN_URL,object.getUrl());
+        contentValues.put(favoritesContract.FavoritesEntry.COLUMN_WIDE_URL,object.getwideUrl());
+        contentValues.put(favoritesContract.FavoritesEntry.COLUMN_RELEASE_DATE,object.getRelease_date());
+        contentValues.put(favoritesContract.FavoritesEntry.COLUMN_VOTE_AVERAGE,object.getVote_average());
+
+        Uri uri=getContentResolver().insert(favoritesContract.BASE_URI.buildUpon().appendPath(favoritesContract.PATH_FAVORITES).build(),contentValues);
+        Log.i("DetailActi Uri",uri.toString());
+
+        if (uri!=null){
+            //we change the graphic and the value
+            mIsFavorite=true;
+            changeGraphicFavorites();
+        }
+    }
+
+    private void changeGraphicFavorites(){
+        if (mIsFavorite){
+            //we activate the color star
+            iv_favorite.setImageResource(android.R.drawable.btn_star_big_on);
+        }else{
+            //we deactivate the color star
+            iv_favorite.setImageResource(android.R.drawable.btn_star_big_off);
+        }
+    }
+
+    //method that checks if the favorite exists
+    private void checkFavorite(){
+        String selection;
+        String[] selectionArgs={""};
+
+        selection=favoritesContract.FavoritesEntry.COLUMN_MOVIE_ID + " = ?";
+        selectionArgs[0]=movieID;
+
+        Cursor cursor=getApplicationContext().getContentResolver().query(favoritesContract.FavoritesEntry.FAVORITES_URI,
+                null,
+                selection,
+                selectionArgs,
+                null,
+                null
+        );
+
+        //we check is the cursor has a child
+        if (cursor.moveToFirst()==true){
+            //is favorite
+            mIsFavorite=true;
+        }else{
+            //it is not favorite
+            mIsFavorite=false;
+        }
+
+        //we change the favorite graphic
+        changeGraphicFavorites();
     }
 }

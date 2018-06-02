@@ -2,7 +2,9 @@
     <string name="app_name">Popular Movies</string>
     <string name="menu_popular">Popular</string>
     <string name="menu_top">Top Rated</string>
+    <string name="menu_favorites">My Favorites</string>
     <string name="no_connection">There\'s no internet connection</string>
+    <string name="no_favorite">You haven\'t added any favorites</string>
     <string name="title_trailers">Trailers</string>
     <string name="title_reviews">Reviews</string>
 </resources>

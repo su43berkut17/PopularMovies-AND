@@ -21,6 +21,9 @@
         </activity>
         <activity android:name=".detailActivity"
             android:parentActivityName="com.su43berkut17.nanodegree.popularmovies.ActivityHomeThumbnails" ></activity>
+        <provider
+            android:authorities="com.su43berkut17.nanodegree.popularmovies"
+            android:name="com.su43berkut17.nanodegree.popularmovies.data.FavoritesContentProvider"
+            android:exported="false"/>
     </application>
-
 </manifest>
