@@ -8,12 +8,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.Parcelable;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.AsyncTaskLoader;
 import android.support.v4.content.Loader;
 
 import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
+import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -25,10 +27,8 @@ import android.widget.TextView;
 //recyclerview related
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.RecyclerView;
-import android.widget.Toast;
 
 import com.su43berkut17.nanodegree.popularmovies.RV_related.thumbnail;
-import com.su43berkut17.nanodegree.popularmovies.RV_related.thumb_adapter;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -48,15 +48,18 @@ public class ActivityHomeThumbnails extends AppCompatActivity implements LoaderM
     private static String SORT_POPULAR="popular";
     private static String SORT_TOP="top_rated";
     private static String SORT_FAVORITES="favorites";
+    private static String currentCategory;
 
     //recycler view
     private RecyclerView mainView;
     private RecyclerView.Adapter adapter;
     private List<thumbnail> thumbnailList;
+    private Parcelable loadedState;
 
     //interface
     private ProgressBar w_progress;
     private TextView tv_noConnection;
+    private Boolean optionsSelected;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,18 +68,64 @@ public class ActivityHomeThumbnails extends AppCompatActivity implements LoaderM
 
         w_progress=(ProgressBar)findViewById(R.id.w_progress);
         tv_noConnection=(TextView)findViewById(R.id.noConnection);
+        optionsSelected=false;
 
         Bundle typeOfSort=new Bundle();
         typeOfSort.putString("TYPE_SORT",SORT_POPULAR);
 
-        //load the initial URL
-        //getSupportLoaderManager().initLoader(LOADER_MOVIE_ID, typeOfSort, this);
-        thumbnailList=new ArrayList<>();
+        //load the initial URL only if the rv is empty
+        if (mainView==null) {
+            thumbnailList = new ArrayList<>();
 
-        initiateLoading(SORT_POPULAR);
+            //currentCategory=SORT_POPULAR;
+            if (currentCategory!=null){
+                initiateLoading(currentCategory);
+            }else {
+                initiateLoading(SORT_POPULAR);
+            }
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState){
+        super.onSaveInstanceState(outState);
+
+        outState.putParcelable("rvState", mainView.getLayoutManager().onSaveInstanceState());
+        outState.putString("CATEGORY_LOAD",currentCategory);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+
+        loadedState=savedInstanceState.getParcelable("rvState");
+        currentCategory=savedInstanceState.getString("CATEGORY_LOAD");
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        loadedState=mainView.getLayoutManager().onSaveInstanceState();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        //if (mainView!=null){
+        try {
+            mainView.getLayoutManager().onRestoreInstanceState(loadedState);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        //}
     }
 
     private void initiateLoading(String sort){
+        //we save the category
+        currentCategory=sort;
+
         if (sort!=SORT_FAVORITES){
             Context context=getApplicationContext();
 
@@ -87,7 +136,6 @@ public class ActivityHomeThumbnails extends AppCompatActivity implements LoaderM
             NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
             boolean isConnected = activeNetwork != null &&
                     activeNetwork.isConnectedOrConnecting();
-            Log.i("MAIN_ACT","The status of the net is "+" the status of the boolean is "+isConnected);
 
             if (isConnected==true) {
                 tv_noConnection.setVisibility(View.INVISIBLE);
@@ -141,7 +189,6 @@ public class ActivityHomeThumbnails extends AppCompatActivity implements LoaderM
                         return finalString;
                     }else{
                         //for the content provider loader
-                        Log.i("where to go","we are GOING TO DATABASE");
                         String finalString=DatabaseToJson.FullDatabaseToJson(getContext());
                         return finalString;
                     }
@@ -157,7 +204,6 @@ public class ActivityHomeThumbnails extends AppCompatActivity implements LoaderM
     public void onLoadFinished(Loader<String> loader, String data) {
         //we create the recyclerview here
         try {
-            Log.i("retrieved from: ",data);
             if (data!=null) {
                 JSONObject jsonObject = new JSONObject(data);
                 JSONArray jsonArray = jsonObject.getJSONArray("results");
@@ -191,7 +237,11 @@ public class ActivityHomeThumbnails extends AppCompatActivity implements LoaderM
                 mainView.setLayoutManager(new GridLayoutManager(this, 2));
                 adapter = new thumb_adapter(thumbnailList, getApplicationContext(), this);
                 mainView.setAdapter(adapter);
-                adapter.notifyDataSetChanged();
+                if (optionsSelected==false){
+                    mainView.getLayoutManager().onRestoreInstanceState(loadedState);
+                }else{
+                    optionsSelected=false;
+                }
             }else{
                 w_progress.setVisibility(View.INVISIBLE);
                 tv_noConnection.setVisibility(View.VISIBLE);
@@ -204,7 +254,6 @@ public class ActivityHomeThumbnails extends AppCompatActivity implements LoaderM
 
     @Override
     public void onLoaderReset(Loader<String> loader) {
-
     }
 
     @Override
@@ -225,6 +274,10 @@ public class ActivityHomeThumbnails extends AppCompatActivity implements LoaderM
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        //we reset the position
+        mainView.getLayoutManager().scrollToPosition(0);
+        optionsSelected=true;
+
         switch (item.getItemId()){
             case R.id.id_popular:
                 initiateLoading(SORT_POPULAR);

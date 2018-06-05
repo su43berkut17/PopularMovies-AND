@@ -8,6 +8,8 @@ import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
+import android.os.Parcelable;
+import android.os.PersistableBundle;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.AsyncTaskLoader;
 import android.support.v4.content.Loader;
@@ -18,7 +20,9 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.RatingBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.squareup.picasso.Picasso;
@@ -27,7 +31,6 @@ import com.su43berkut17.nanodegree.popularmovies.RV_related.reviews;
 import com.su43berkut17.nanodegree.popularmovies.RV_related.thumbnail;
 import com.su43berkut17.nanodegree.popularmovies.RV_related.trailer;
 import com.su43berkut17.nanodegree.popularmovies.RV_related.trailer_adapter;
-import com.su43berkut17.nanodegree.popularmovies.RV_related.review_adapter;
 import com.su43berkut17.nanodegree.popularmovies.Utils.NetUtils;
 import com.su43berkut17.nanodegree.popularmovies.data.favoritesContract;
 
@@ -55,30 +58,37 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
     private List<reviews> reviewList;
 
     //generate the object that has all the variables to store
-    thumbnail object;
+    private thumbnail object;
 
     //get the view ids
-    TextView tv_title;
-    TextView tv_release;
-    TextView tv_plot;
-    ImageView iv_poster;
-    ImageView iv_thumb;
-    RatingBar rv_score;
-    ImageView iv_favorite;
+    private TextView tv_title;
+    private TextView tv_release;
+    private TextView tv_plot;
+    private ImageView iv_poster;
+    private ImageView iv_thumb;
+    private RatingBar rv_score;
+    private ImageView iv_favorite;
+
+    //get the scrollview
+    private ScrollView scrollView;
+    private static int[] loadedState=new int[]{0,0};
+    private static Parcelable loadedStateTrailer;
+    private static Parcelable loadedStateReviews;
 
     //favorites related
-    Boolean mIsFavorite;
+    private Boolean mIsFavorite;
 
     //other bars
     private String movieID;
+
+    //loading bar
+    private ProgressBar w_progress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
-
-        //debug
-        //mIsFavorite=false;
+        scrollView=(ScrollView)findViewById(R.id.scrollViewDetail);
 
         //get the views
         tv_title=(TextView)findViewById(R.id.tv_title);
@@ -88,12 +98,12 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
         iv_thumb=(ImageView)findViewById(R.id.iv_thumb);
         rv_score=(RatingBar)findViewById(R.id.rat_score);
         iv_favorite=(ImageView)findViewById(R.id.bFavorite);
+        w_progress=(ProgressBar)findViewById(R.id.w_detail_progress);
 
         //we set the listener to the favorites button
         iv_favorite.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Log.i("detACT","the value of mIsFavorite is "+mIsFavorite );
                 if (mIsFavorite!=null) {
                     if (mIsFavorite) {
                         //it is a favorite so we delete
@@ -114,19 +124,81 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
         rv_score.setRating(object.getVote_average());
         movieID=object.getmovieId();
 
-        //load the image
-        Picasso.get().load("https://image.tmdb.org/t/p/w500"+object.getUrl()).into(iv_thumb);
-        Picasso.get().load("https://image.tmdb.org/t/p/w500"+object.getwideUrl()).into(iv_poster);
+        //we load the trailers and the reviews only is the rv is null
+        if (trailerView==null) {
+            //we show the progress bar
+            w_progress.setVisibility(View.VISIBLE);
 
-        //initialize the empty trailer lists
-        trailerList=new ArrayList<>();
-        reviewList=new ArrayList<>();
+            //load the image
+            Picasso.get().load("https://image.tmdb.org/t/p/w500"+object.getUrl()).into(iv_thumb);
+            Picasso.get().load("https://image.tmdb.org/t/p/w500"+object.getwideUrl()).into(iv_poster);
 
-        //we load the trailers and the reviews
-        loadTrailers(movieID,"trailer");
+            //initialize the empty trailer lists
+            trailerList=new ArrayList<>();
+            reviewList=new ArrayList<>();
 
-        //we check if it is already in favorites
-        checkFavorite();
+            loadTrailers(movieID, "trailer");
+
+            //we check if it is already in favorites
+            checkFavorite();
+        }
+    }
+
+    //scroll saving
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        outState.putInt("scrollX",scrollView.getScrollX());
+        outState.putInt("scrollY",scrollView.getScrollY());
+        if (trailerView!=null) {
+            outState.putParcelable("savedTrailer", trailerView.getLayoutManager().onSaveInstanceState());
+        }
+        if (reviewView!=null) {
+            outState.putParcelable("savedReview", reviewView.getLayoutManager().onSaveInstanceState());
+        }
+    }
+
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+
+        loadedState[0]=savedInstanceState.getInt("scrollX");
+        loadedState[1]=savedInstanceState.getInt("scrollY");
+
+        loadedStateTrailer=savedInstanceState.getParcelable("savedTrailer");
+        loadedStateReviews=savedInstanceState.getParcelable("savedReview");
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        //loadedState=new int[]{0,0};
+        loadedState[0]=scrollView.getScrollX();
+        loadedState[1]=scrollView.getScrollY();
+
+        if (trailerView!=null) {
+            loadedStateTrailer = trailerView.getLayoutManager().onSaveInstanceState();
+        }
+        if (reviewView!=null) {
+            loadedStateReviews = reviewView.getLayoutManager().onSaveInstanceState();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (loadedState!=null){
+            scrollView.post(new Runnable() {
+                @Override
+                public void run() {
+                    scrollView.scrollTo(loadedState[0],loadedState[1]);
+                }
+            });
+        }
     }
 
     //function that loads trailers
@@ -213,8 +285,6 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
                         trailerList.add(trailerThumbs);
                     }
 
-                    Log.i("Trailer list",trailerList.toString());
-
                     //create the recyclerview
                     trailerView = (RecyclerView) findViewById(R.id.rv_trailers);
                     trailerView.setLayoutManager(new LinearLayoutManager(this));
@@ -239,17 +309,36 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
                         reviewList.add(reviewThumbs);
                     }
 
-                    Log.i("Review list: ",reviewList.toString());
-
                     //create the review recyclerList
                     reviewView = (RecyclerView) findViewById(R.id.rv_reviews);
                     reviewView.setLayoutManager(new LinearLayoutManager(this));
                     reviewAdapter = new review_adapter(reviewList, getApplicationContext(), this);
                     reviewView.setAdapter(reviewAdapter);
                     reviewAdapter.notifyDataSetChanged();
+
+
+                    if (loadedState!=null){
+                        scrollView.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                scrollView.scrollTo(loadedState[0],loadedState[1]);
+                            }
+                        });
+                    }
+
+                    if(loadedStateTrailer!=null){
+                        trailerView.getLayoutManager().onRestoreInstanceState(loadedStateTrailer);
+                    }
+
+                    if (loadedStateReviews!=null){
+                        reviewView.getLayoutManager().onRestoreInstanceState(loadedStateReviews);
+                    }
+
+                    //we finished the load
+                    w_progress.setVisibility(View.INVISIBLE);
                 }
             }else{
-                //tv_noConnection.setVisibility(View.VISIBLE);
+                w_progress.setVisibility(View.INVISIBLE);
             }
         }catch (JSONException e){
             e.printStackTrace();
@@ -290,7 +379,6 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
 
     //content provider write
     private void deleteFavorite(){
-        Log.i("detACT","we will delete now");
         //we delete the current object
         int rowDeleted=0;
 
@@ -303,8 +391,6 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
         rowDeleted=getContentResolver().delete(favoritesContract.FavoritesEntry.FAVORITES_URI,
                 selection,
                 selectionArgs);
-
-        Log.i("detACT","we deleted "+rowDeleted+" items");
 
         //we check if something was deleted
         checkFavorite();
@@ -322,7 +408,6 @@ public class detailActivity extends AppCompatActivity implements LoaderManager.L
         contentValues.put(favoritesContract.FavoritesEntry.COLUMN_VOTE_AVERAGE,object.getVote_average());
 
         Uri uri=getContentResolver().insert(favoritesContract.BASE_URI.buildUpon().appendPath(favoritesContract.PATH_FAVORITES).build(),contentValues);
-        Log.i("DetailActi Uri",uri.toString());
 
         if (uri!=null){
             //we change the graphic and the value

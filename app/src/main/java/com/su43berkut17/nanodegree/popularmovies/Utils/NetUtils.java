@@ -1,7 +1,6 @@
 package com.su43berkut17.nanodegree.popularmovies.Utils;
 
 import android.net.Uri;
-import android.util.Log;
 
 import com.su43berkut17.nanodegree.popularmovies.BuildConfig;
 
@@ -44,7 +43,6 @@ public class NetUtils {
         URL url=null;
         try{
             url=new URL(builtUri.toString());
-            Log.i("URL",url.toString());
         }catch (MalformedURLException e){
             e.printStackTrace();
         }
@@ -88,7 +86,6 @@ public class NetUtils {
                         finalString=finalString+toAdd;
                         hasInput=scanner.hasNext();
                     }while (hasInput==true);
-                    Log.i("TEXT",finalString);
                     return finalString;
                 } else {
                     return null;
